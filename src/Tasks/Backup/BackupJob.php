@@ -6,6 +6,7 @@ use Exception;
 use Carbon\Carbon;
 use Spatie\DbDumper\DbDumper;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\File;
 use Spatie\DbDumper\Databases\Sqlite;
 use Spatie\Backup\Events\BackupHasFailed;
 use Spatie\Backup\Events\BackupWasSuccessful;
@@ -47,6 +48,16 @@ class BackupJob
     public function dontBackupFilesystem(): self
     {
         $this->fileSelection = FileSelection::create();
+
+        return $this;
+    }
+
+    public function onlyDbName(array $allowedDbNames): self
+    {
+        $this->dbDumpers = $this->dbDumpers->filter(
+            function (DbDumper $dbDumper, string $connectionName) use ($allowedDbNames) {
+                return in_array($connectionName, $allowedDbNames);
+            });
 
         return $this;
     }
@@ -226,6 +237,7 @@ class BackupJob
                 consoleOutput()->info("Gzipping {$dbDumper->getDbName()}...");
 
                 $compressedDumpPath = Gzip::compress($temporaryFilePath);
+                File::delete($temporaryFilePath);
 
                 return $compressedDumpPath;
             }
